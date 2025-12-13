@@ -291,7 +291,8 @@
                 currentSelection: null,
                 selectionStep: 0,
                 usedImages: [],
-                poolType: 'main'
+                poolType: 'main',
+                pendingGroups: null
             },
             availableImages: Array.from({length: 555}, (_, i) => `choice${i + 1}.jpg`),
 
@@ -335,9 +336,10 @@
                     currentSelection: null,
                     selectionStep: 0,
                     usedImages: [],
-                    poolType: 'main'
+                    poolType: 'main',
+                    pendingGroups: null
                 };
-                this.showPreparation();
+                this.startNewNumber();
             },
 
             showPreparation() {
@@ -348,7 +350,15 @@
             proceedToSelection() {
                 document.getElementById('preparationSection').classList.add('hidden');
                 document.getElementById('selectionSection').classList.remove('hidden');
-                this.startNewNumber();
+                
+                // Display the pending groups that were prepared
+                if (this.gameState.pendingGroups) {
+                    this.displayImageChoices(this.gameState.pendingGroups);
+                    this.gameState.pendingGroups = null;
+                } else {
+                    // Fallback in case something went wrong
+                    this.startNewNumber();
+                }
             },
 
             startNewNumber() {
@@ -383,16 +393,19 @@
                     if (this.gameState.selectedNumbers.length === 7) {
                         this.completeSelection();
                     } else {
-                        // Show preparation before next number
-                        this.showPreparation();
+                        // Start next number
+                        this.startNewNumber();
                     }
                     return;
                 }
                 
+                // Create groups and save them, then show preparation
                 const numGroups = Math.min(5, pool.length);
                 const groups = this.divideIntoGroups(pool, numGroups);
+                this.gameState.pendingGroups = groups;
                 
-                this.displayImageChoices(groups);
+                // Show preparation before each image selection
+                this.showPreparation();
             },
 
             divideIntoGroups(pool, numGroups) {
@@ -678,7 +691,8 @@
                     currentSelection: null,
                     selectionStep: 0,
                     usedImages: [],
-                    poolType: 'main'
+                    poolType: 'main',
+                    pendingGroups: null
                 };
             }
         };
