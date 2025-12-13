@@ -217,6 +217,8 @@
             border-radius: 5px;
             margin: 10px 0;
             border-left: 4px solid #dc3545;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -485,8 +487,9 @@
                     const analysis = await this.analyzeResults();
                     this.displayResults(analysis);
                 } catch (error) {
+                    console.error('Error:', error);
                     document.getElementById('resultsContent').innerHTML = 
-                        `<div class="error">Error: ${error.message}</div>`;
+                        `<div class="error"><strong>❌ Error</strong><br><br>${error.message}<br><br>Your selection was not saved. Please check your GitHub configuration and try again.</div>`;
                 } finally {
                     document.getElementById('loadingResults').classList.add('hidden');
                     document.getElementById('resultsContent').classList.remove('hidden');
@@ -524,7 +527,29 @@
                 );
                 
                 if (!response.ok) {
-                    throw new Error(`GitHub API error: ${response.statusText}`);
+                    let errorMessage = `GitHub API error (${response.status}): ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.message) {
+                            errorMessage += `\n${errorData.message}`;
+                        }
+                        if (errorData.documentation_url) {
+                            errorMessage += `\nSee: ${errorData.documentation_url}`;
+                        }
+                    } catch (e) {
+                        // Could not parse error response
+                    }
+                    
+                    // Add helpful hints based on status code
+                    if (response.status === 404) {
+                        errorMessage += '\n\nTip: Check that your repository owner and name are correct.';
+                    } else if (response.status === 401) {
+                        errorMessage += '\n\nTip: Your token may be invalid or expired. Try generating a new one.';
+                    } else if (response.status === 403) {
+                        errorMessage += '\n\nTip: Make sure your token has "repo" permissions or the repository is public.';
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
                 
                 return await response.json();
@@ -545,7 +570,16 @@
                 );
                 
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch issues: ${response.statusText}`);
+                    let errorMessage = `Failed to fetch issues (${response.status}): ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.message) {
+                            errorMessage += `\n${errorData.message}`;
+                        }
+                    } catch (e) {
+                        // Could not parse error response
+                    }
+                    throw new Error(errorMessage);
                 }
                 
                 const issues = await response.json();
