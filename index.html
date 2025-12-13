@@ -142,29 +142,6 @@
             transform: none;
         }
 
-        .selected-numbers {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-        }
-
-        .number-display {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .number-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-        }
-
         .results-section {
             background: #f8f9fa;
             padding: 30px;
@@ -277,11 +254,6 @@
                 Select an image
             </div>
 
-            <div class="selected-numbers">
-                <strong>Selected Numbers:</strong>
-                <div class="number-display" id="selectedNumbers"></div>
-            </div>
-
             <div class="image-grid" id="imageGrid"></div>
 
             <button class="btn" id="proceedBtn" onclick="app.proceedToNext()" disabled>Proceed to Next Selection</button>
@@ -387,11 +359,8 @@
                 document.getElementById('selectionInfo').textContent = 
                     `Selecting number ${numbersSelected + 1} of 7 (Pool: ${poolName})`;
                 
-                this.updateSelectedNumbersDisplay();
-                
                 if (pool.length === 1) {
                     this.gameState.selectedNumbers.push(pool[0]);
-                    this.updateSelectedNumbersDisplay();
                     
                     if (this.gameState.selectedNumbers.length === 7) {
                         this.completeSelection();
@@ -471,18 +440,6 @@
                 this.gameState.currentPool = this.gameState.currentSelection;
                 this.gameState.selectionStep++;
                 this.showChoices();
-            },
-
-            updateSelectedNumbersDisplay() {
-                const display = document.getElementById('selectedNumbers');
-                display.innerHTML = '';
-                
-                this.gameState.selectedNumbers.forEach((num, index) => {
-                    const badge = document.createElement('span');
-                    badge.className = 'number-badge';
-                    badge.textContent = num;
-                    display.appendChild(badge);
-                });
             },
 
             async completeSelection() {
@@ -642,12 +599,19 @@
                 let html = '<div class="results-section">';
                 html += '<h2>🎯 Your Selection Results</h2>';
                 
-                html += '<div class="stat-item">';
-                html += '<strong>Your Numbers:</strong><br>';
-                html += `Main: ${analysis.currentSelection.main.join(', ')}<br>`;
-                html += `Bonus: ${analysis.currentSelection.bonus.join(', ')}`;
-                html += '</div>';
+                // Only show actual numbers if ALL 7 are above average
+                const allAboveAverage = analysis.aboveAverageCount === 7;
                 
+                if (allAboveAverage) {
+                    html += '<div class="stat-item winning-series">';
+                    html += '<strong>🌟 REMARKABLE! All 7 of your numbers are above statistical average!</strong><br>';
+                    html += '<strong>Your Numbers:</strong><br>';
+                    html += `Main: ${analysis.currentSelection.main.join(', ')}<br>`;
+                    html += `Bonus: ${analysis.currentSelection.bonus.join(', ')}`;
+                    html += '</div>';
+                }
+                
+                // Show statistics
                 html += '<div class="stat-item">';
                 html += `<strong>Total Selections in Database:</strong> ${analysis.totalSelections}`;
                 html += '</div>';
@@ -664,7 +628,7 @@
                     analysis.duplicates.forEach((dup, index) => {
                         if (dup.allAboveAverage) {
                             html += '<div class="stat-item winning-series">';
-                            html += '<strong>🌟 REMARKABLE! All 7 numbers in this series are above statistical average!</strong><br>';
+                            html += '<strong>🌟 REMARKABLE! This previously selected series has all 7 numbers above statistical average!</strong><br>';
                             html += `Main: ${dup.selection.main.join(', ')}<br>`;
                             html += `Bonus: ${dup.selection.bonus.join(', ')}`;
                             html += '</div>';
