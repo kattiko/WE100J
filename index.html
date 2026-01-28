@@ -323,6 +323,52 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
+
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #667eea;
+        }
+
+        .filter-section h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+
+        .filter-section label {
+            display: block;
+            margin-bottom: 10px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .filter-section input[type="date"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .filter-section .btn {
+            margin: 5px 10px 5px 0;
+            padding: 10px 25px;
+            font-size: 0.95em;
+            display: inline-block;
+        }
+
+        .filter-info {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 5px;
+            margin-top: 15px;
+            color: #1976d2;
+            border-left: 4px solid #2196f3;
+        }
     </style>
 </head>
 <body>
@@ -402,6 +448,9 @@
                 currentScheduleIndex: 0
             },
             availableImages: Array.from({length: 555}, (_, i) => `choice${i + 1}.jpg`),
+            analysisData: null,
+            allIssues: [],
+            filterDate: null,
 
             init() {
                 this.loadConfig();
@@ -618,6 +667,7 @@
                 try {
                     await this.submitToGitHub();
                     const analysis = await this.analyzeResults();
+                    this.analysisData = analysis;
                     this.displayResults(analysis);
                 } catch (error) {
                     console.error('Error:', error);
@@ -722,7 +772,12 @@
                 }
                 
                 const issues = await response.json();
+                this.allIssues = issues;
                 
+                return this.processAnalysis(issues);
+            },
+
+            processAnalysis(issues) {
                 const allSelections = [];
                 const numberFrequency = { main: {}, bonus: {} };
                 const comboFrequency = {};
@@ -730,7 +785,12 @@
                 for (let i = 1; i <= 50; i++) numberFrequency.main[i] = 0;
                 for (let i = 1; i <= 12; i++) numberFrequency.bonus[i] = 0;
                 
-                issues.forEach(issue => {
+                // Filter issues by date if filter is active
+                const filteredIssues = this.filterDate 
+                    ? issues.filter(issue => new Date(issue.created_at) >= new Date(this.filterDate))
+                    : issues;
+                
+                filteredIssues.forEach(issue => {
                     const match = issue.title.match(/Selection: (.+)/);
                     if (match) {
                         const [mainPart, bonusPart] = match[1].split(' + ');
@@ -799,6 +859,8 @@
                     expectedBonusFreq,
                     topMainNumbers: mainDeviations.slice(0, 5),
                     topBonusNumbers: bonusDeviations.slice(0, 2),
+                    bottomMainNumbers: mainDeviations.slice(-5).reverse(),
+                    bottomBonusNumbers: bonusDeviations.slice(-2).reverse(),
                     duplicateCombos
                 };
                 
@@ -893,6 +955,17 @@
                 html += '<button class="toggle-stats-btn" onclick="app.toggleStatistics()">📊 View Detailed Statistics</button>';
                 html += '<div id="statisticsSection" class="statistics-section hidden">';
                 
+                // Date filter section
+                html += '<div class="filter-section">';
+                html += '<h3>⚙️ Filter Options</h3>';
+                html += '<label>Include only selections from this date onward:</label>';
+                html += '<input type="date" id="dateFilter" onchange="app.applyDateFilter()">';
+                html += '<button class="btn" onclick="app.clearDateFilter()">Clear Date Filter</button>';
+                if (this.filterDate) {
+                    html += `<div class="filter-info">📅 Currently showing results from ${new Date(this.filterDate).toLocaleDateString()} onward</div>`;
+                }
+                html += '</div>';
+                
                 html += '<h3>🔁 Combinations Selected More Than Once</h3>';
                 if (analysis.duplicateCombos.length > 0) {
                     analysis.duplicateCombos.forEach(item => {
@@ -906,7 +979,7 @@
                     html += '<div class="stat-item">No combinations have been selected more than once yet.</div>';
                 }
                 
-                html += '<h3>📈 Top 5 Numbers (1-50) by Deviation from Average</h3>';
+                html += '<h3>📈 Top 5 Most Selected Numbers (1-50)</h3>';
                 html += '<div class="stats-grid">';
                 analysis.topMainNumbers.forEach((item, index) => {
                     html += '<div class="stats-card">';
@@ -917,9 +990,31 @@
                 });
                 html += '</div>';
                 
-                html += '<h3>🎲 Top 2 Bonus Numbers (1-12) by Deviation from Average</h3>';
+                html += '<h3>📉 Bottom 5 Least Selected Numbers (1-50)</h3>';
+                html += '<div class="stats-grid">';
+                analysis.bottomMainNumbers.forEach((item, index) => {
+                    html += '<div class="stats-card">';
+                    html += `<div class="number">#${index + 1}: ${item.number}</div>`;
+                    html += `<div class="label">Frequency: ${item.frequency} times</div>`;
+                    html += `<div class="deviation">${item.deviation >= 0 ? '+' : ''}${item.deviation.toFixed(1)}%</div>`;
+                    html += '</div>';
+                });
+                html += '</div>';
+                
+                html += '<h3>🎲 Top 2 Most Selected Bonus Numbers (1-12)</h3>';
                 html += '<div class="stats-grid">';
                 analysis.topBonusNumbers.forEach((item, index) => {
+                    html += '<div class="stats-card">';
+                    html += `<div class="number">#${index + 1}: ${item.number}</div>`;
+                    html += `<div class="label">Frequency: ${item.frequency} times</div>`;
+                    html += `<div class="deviation">${item.deviation >= 0 ? '+' : ''}${item.deviation.toFixed(1)}%</div>`;
+                    html += '</div>';
+                });
+                html += '</div>';
+                
+                html += '<h3>🎲 Bottom 2 Least Selected Bonus Numbers (1-12)</h3>';
+                html += '<div class="stats-grid">';
+                analysis.bottomBonusNumbers.forEach((item, index) => {
                     html += '<div class="stats-card">';
                     html += `<div class="number">#${index + 1}: ${item.number}</div>`;
                     html += `<div class="label">Frequency: ${item.frequency} times</div>`;
@@ -946,6 +1041,45 @@
                 }
             },
 
+            applyDateFilter() {
+                const dateInput = document.getElementById('dateFilter');
+                this.filterDate = dateInput.value;
+                
+                if (this.filterDate && this.analysisData && this.allIssues.length > 0) {
+                    const newAnalysis = this.processAnalysis(this.allIssues);
+                    this.analysisData = newAnalysis;
+                    this.displayResults(newAnalysis);
+                    
+                    // Re-show statistics if they were already open
+                    const statsSection = document.getElementById('statisticsSection');
+                    if (!statsSection.classList.contains('hidden')) {
+                        statsSection.classList.remove('hidden');
+                        document.querySelector('.toggle-stats-btn').textContent = '📊 Hide Detailed Statistics';
+                    }
+                }
+            },
+
+            clearDateFilter() {
+                this.filterDate = null;
+                const dateInput = document.getElementById('dateFilter');
+                if (dateInput) {
+                    dateInput.value = '';
+                }
+                
+                if (this.analysisData && this.allIssues.length > 0) {
+                    const newAnalysis = this.processAnalysis(this.allIssues);
+                    this.analysisData = newAnalysis;
+                    this.displayResults(newAnalysis);
+                    
+                    // Re-show statistics if they were already open
+                    const statsSection = document.getElementById('statisticsSection');
+                    if (!statsSection.classList.contains('hidden')) {
+                        statsSection.classList.remove('hidden');
+                        document.querySelector('.toggle-stats-btn').textContent = '📊 Hide Detailed Statistics';
+                    }
+                }
+            },
+
             reset() {
                 document.getElementById('resultsSection').classList.add('hidden');
                 document.getElementById('preparationSection').classList.add('hidden');
@@ -961,10 +1095,11 @@
                     selectionSchedule: [],
                     currentScheduleIndex: 0
                 };
+                this.filterDate = null;
             }
         };
 
         window.onload = () => app.init();
     </script>
 </body>
-    </html>
+</html>
