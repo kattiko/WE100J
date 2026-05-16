@@ -537,15 +537,22 @@
 
             startNewNumber() {
                 const poolType = this.gameState.selectionSchedule[this.gameState.currentScheduleIndex];
-                
+
+                // Exclude numbers already selected for this pool type to prevent duplicates
+                const alreadySelected = this.gameState.selectedNumbers
+                    .filter(item => item.poolType === poolType)
+                    .map(item => item.number);
+
                 if (poolType === 'main') {
-                    this.gameState.currentPool = Array.from({length: 50}, (_, i) => i + 1);
+                    this.gameState.currentPool = Array.from({length: 50}, (_, i) => i + 1)
+                        .filter(n => !alreadySelected.includes(n));
                     this.gameState.poolType = 'main';
                 } else {
-                    this.gameState.currentPool = Array.from({length: 12}, (_, i) => i + 1);
+                    this.gameState.currentPool = Array.from({length: 12}, (_, i) => i + 1)
+                        .filter(n => !alreadySelected.includes(n));
                     this.gameState.poolType = 'bonus';
                 }
-                
+
                 this.gameState.selectionStep = 0;
                 this.showChoices();
             },
@@ -587,7 +594,7 @@
             },
 
             divideIntoGroups(pool, numGroups) {
-                // FIXED: Proper Fisher-Yates shuffle instead of biased sort
+                // Proper Fisher-Yates shuffle
                 const shuffled = [...pool];
                 for (let i = shuffled.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -1050,7 +1057,6 @@
                     this.analysisData = newAnalysis;
                     this.displayResults(newAnalysis);
                     
-                    // Re-show statistics if they were already open
                     const statsSection = document.getElementById('statisticsSection');
                     if (!statsSection.classList.contains('hidden')) {
                         statsSection.classList.remove('hidden');
@@ -1071,7 +1077,6 @@
                     this.analysisData = newAnalysis;
                     this.displayResults(newAnalysis);
                     
-                    // Re-show statistics if they were already open
                     const statsSection = document.getElementById('statisticsSection');
                     if (!statsSection.classList.contains('hidden')) {
                         statsSection.classList.remove('hidden');
@@ -1102,4 +1107,4 @@
         window.onload = () => app.init();
     </script>
 </body>
-</html>
+    </html>
